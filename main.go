@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bookingAPI/controllers"
 	"bookingAPI/database"
 	"bookingAPI/models"
+	"bookingAPI/utils"
 	"fmt"
 	"log"
 	"os"
 
+	_ "bookingAPI/docs"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func main() {
@@ -44,6 +50,9 @@ func loadDatabase() {
 func serveApplication() {
 	router := gin.Default()
 
+	// Serve Swagger UI
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// Set SecureJSON middleware to handle proxy headers securely
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'")
@@ -59,6 +68,19 @@ func serveApplication() {
 
 		c.Next()
 	})
+
+	authRoutes := router.Group("/auth/user")
+	authRoutes.POST("/register", controllers.Register)
+	authRoutes.POST("/login", controllers.Login)
+
+	adminRoutes := router.Group("/admin")
+	adminRoutes.Use(utils.JWTAuth())
+	adminRoutes.GET("/users", controllers.GetUsers)
+	adminRoutes.GET("/user/:id", controllers.GetUser)
+	adminRoutes.PUT("/user/:id", controllers.UpdateUser)
+	adminRoutes.POST("/user/role", controllers.CreateRole)
+	adminRoutes.GET("/user/roles", controllers.GetRoles)
+	adminRoutes.PUT("/user/role/:id", controllers.UpdateRole)
 
 	err := router.Run(":8000")
 	if err != nil {
